@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { UserNav } from './UserNav';
 import { cn } from '@/lib/utils';
-import backgroundImage from '@/assets/background.png';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -15,13 +14,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div 
-      className="min-h-screen w-full"
-      style={{
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
+      className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800"
     >
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-black/30 backdrop-blur-lg">
         <div className="container flex h-16 items-center">
