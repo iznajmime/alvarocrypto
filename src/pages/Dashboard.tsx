@@ -63,6 +63,8 @@ import { useEffect, useState } from "react";
       transaction_value_usd: number;
       asset?: string | null;
       asset_quantity?: number | null;
+      price_per_asset_usd?: number | null;
+      created_at?: string;
     };
 
     const formatCurrency = (value: number) => {
@@ -112,7 +114,7 @@ import { useEffect, useState } from "react";
           try {
             const { data: transactions, error: txError } = await supabase
               .from("transactions")
-              .select("transaction_type, transaction_value_usd, asset, asset_quantity");
+              .select("transaction_type, transaction_value_usd, asset, asset_quantity, price_per_asset_usd, created_at");
 
             if (txError) throw txError;
             if (!transactions) throw new Error("No transactions found.");
@@ -153,6 +155,19 @@ import { useEffect, useState } from "react";
             const assetIdsToFetch = Array.from(uniqueAssetIds);
             const prices = await fetchCryptoPrices(assetIdsToFetch);
 
+            // Helper function to find the most recent transaction price for an asset
+            const findLastKnownPrice = (asset: string): number => {
+              const assetTransactions = (transactions as Transaction[])
+                .filter(tx => 
+                  tx.asset === asset && 
+                  (tx.transaction_type === 'BUY' || tx.transaction_type === 'SELL') &&
+                  tx.price_per_asset_usd && 
+                  tx.price_per_asset_usd > 0
+                )
+                .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
+              
+              return assetTransactions.length > 0 ? assetTransactions[0].price_per_asset_usd! : 0;
+            };
             // --- UNIFIED P&amp;L CALCULATION ---
             const positions: OpenPosition[] = [];
             for (const asset in assetPortfolios) {
@@ -161,7 +176,16 @@ import { useEffect, useState } from "react";
 
               if (quantityHeld > 1e-9) {
                 const costBasis = portfolio.totalCost;
-                const livePrice = prices[asset]?.usd || 0;
+                
+                // Implement fallback pricing logic
+                let livePrice = prices[asset]?.usd || 0;
+                
+                // If live price is 0 or not available, fall back to last known transaction price
+                if (livePrice <= 0) {
+                  livePrice = findLastKnownPrice(asset);
+                  console.log(`Using fallback price for ${asset}: $${livePrice} (live price was ${prices[asset]?.usd || 'unavailable'})`);
+                }
+                
                 const twentyFourHourChange = prices[asset]?.usd_24h_change || 0;
                 const marketValue = quantityHeld * livePrice;
                 const pnl = marketValue - costBasis;
